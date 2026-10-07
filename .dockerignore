@@ -1,0 +1,9 @@
+node_modules
+dist
+npm-debug.log
+.env.local
+.git
+.gitignore
+.vscode
+.gemini
+README.md

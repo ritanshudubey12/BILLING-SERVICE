@@ -1,0 +1,337 @@
+{
+  "info": {
+    "_postman_id": "triostack-billing-microservice-v1",
+    "name": "TRIOSTACK BILLING API MICROSERVICE",
+    "description": "Postman Collection for Triostack Billing API Microservice according to Technical & Functional Report",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "planId",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "invoiceId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Authentication Helper",
+      "item": [
+        {
+          "name": "Generate Test JWT Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('token', jsonData.token);",
+                  "    console.log('Saved token to collection variable: ' + jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sub\": \"10001\",\n  \"organization_id\": \"50001\",\n  \"roles\": [\"OWNER\"],\n  \"permissions\": [\"billing:read\", \"billing:write\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "token"]
+            },
+            "description": "Generates a verified JWT access token containing sub=10001 and organization_id=50001 for test usage."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Billing Plans",
+      "item": [
+        {
+          "name": "List Active Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billing/plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "plans"]
+            },
+            "description": "GET /api/v1/billing/plans - List active billing plans"
+          }
+        },
+        {
+          "name": "Create Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Triostack Custom Enterprise\",\n  \"description\": \"Tailored enterprise tier with custom limits\",\n  \"amount\": 25000,\n  \"currency\": \"INR\",\n  \"interval\": \"MONTHLY\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/billing/plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "plans"]
+            },
+            "description": "POST /api/v1/billing/plans - Create a new plan"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Subscriptions",
+      "item": [
+        {
+          "name": "Get Latest Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billing/subscription",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "subscription"]
+            },
+            "description": "GET /api/v1/billing/subscription - Get latest subscription for the authenticated organization"
+          }
+        },
+        {
+          "name": "Create Subscription (Idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "sub-practice-001"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plan_id\": \"{{planId}}\",\n  \"billing_cycle\": \"MONTHLY\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/billing/subscriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "subscriptions"]
+            },
+            "description": "POST /api/v1/billing/subscriptions - Create subscription with Idempotency-Key"
+          }
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billing/subscription/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "subscription", "cancel"]
+            },
+            "description": "PATCH /api/v1/billing/subscription/cancel - Cancel active subscription"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Invoices",
+      "item": [
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billing/invoices",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "invoices"]
+            },
+            "description": "GET /api/v1/billing/invoices - List invoices scoped to organization"
+          }
+        },
+        {
+          "name": "Get Invoice By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billing/invoices/{{invoiceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "invoices", "{{invoiceId}}"]
+            },
+            "description": "GET /api/v1/billing/invoices/:id - Get invoice by BIGINT ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Payments",
+      "item": [
+        {
+          "name": "Record Payment (Idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "payment-tenant-50001-001"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_id\": \"{{invoiceId}}\",\n  \"amount\": 7668.82,\n  \"provider\": \"RAZORPAY\",\n  \"provider_payment_id\": \"pay_rzp_mock_50001_02\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/billing/payments",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "payments"]
+            },
+            "description": "POST /api/v1/billing/payments - Record payment against invoice and mark invoice as PAID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Usage Metering",
+      "item": [
+        {
+          "name": "Record Usage Metric",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metric\": \"WHATSAPP_CREDITS\",\n  \"quantity\": \"450\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/billing/usage",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "usage"]
+            },
+            "description": "POST /api/v1/billing/usage - Record metered consumption"
+          }
+        },
+        {
+          "name": "Get Organization Usage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billing/usage",
+              "host": ["{{baseUrl}}"],
+              "path": ["billing", "usage"]
+            },
+            "description": "GET /api/v1/billing/usage - Get usage records for organization"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "GET /api/v1/health - Public health check probe"
+          }
+        }
+      ]
+    }
+  ]
+}

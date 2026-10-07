@@ -1,0 +1,134 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model BillingPlan {
+  id          BigInt         @id @default(autoincrement())
+  name        String
+  description String?
+  amount      Decimal        @db.Decimal(12, 2)
+  currency    String         @default("INR")
+  interval    String         @default("MONTHLY") // MONTHLY, ANNUAL
+  is_active   Boolean        @default(true)
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("billing_plans")
+}
+
+model Subscription {
+  id              BigInt             @id @default(autoincrement())
+  organization_id BigInt
+  plan_id         BigInt
+  billing_cycle   String             @default("MONTHLY")
+  status          SubscriptionStatus @default(ACTIVE)
+  created_by      BigInt
+  period_start    DateTime
+  period_end      DateTime
+  cancel_at_period_end Boolean       @default(false)
+  created_at      DateTime           @default(now())
+  updated_at      DateTime           @updatedAt
+
+  plan            BillingPlan        @relation(fields: [plan_id], references: [id])
+  invoices        Invoice[]
+
+  @@index([organization_id])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id              BigInt        @id @default(autoincrement())
+  organization_id BigInt
+  subscription_id BigInt?
+  invoice_number  String        @unique
+  subtotal        Decimal       @db.Decimal(12, 2)
+  tax_amount      Decimal       @db.Decimal(12, 2)
+  total_amount    Decimal       @db.Decimal(12, 2)
+  status          InvoiceStatus @default(PENDING)
+  issue_date      DateTime      @default(now())
+  due_date        DateTime
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+
+  subscription    Subscription? @relation(fields: [subscription_id], references: [id])
+  payments        Payment[]
+
+  @@index([organization_id])
+  @@map("invoices")
+}
+
+model Payment {
+  id                  BigInt        @id @default(autoincrement())
+  organization_id     BigInt
+  invoice_id          BigInt
+  amount              Decimal       @db.Decimal(12, 2)
+  provider            String        @default("RAZORPAY")
+  provider_payment_id String?
+  status              PaymentStatus @default(SUCCESS)
+  idempotency_key     String?
+  payment_date        DateTime      @default(now())
+  created_at          DateTime      @default(now())
+
+  invoice             Invoice       @relation(fields: [invoice_id], references: [id])
+
+  @@unique([organization_id, idempotency_key])
+  @@index([organization_id])
+  @@map("payments")
+}
+
+model UsageRecord {
+  id              BigInt   @id @default(autoincrement())
+  organization_id BigInt
+  user_id         BigInt
+  metric          String   // CRM_CONTACTS, WHATSAPP_CREDITS, AI_API_CALLS, STORAGE_GB, TEAM_SEATS
+  quantity        BigInt
+  period_start    DateTime
+  period_end      DateTime
+  created_at      DateTime @default(now())
+
+  @@index([organization_id, metric])
+  @@map("usage_records")
+}
+
+model IdempotencyRecord {
+  id              BigInt   @id @default(autoincrement())
+  organization_id BigInt
+  idempotency_key String
+  resource_type   String   // SUBSCRIPTION, PAYMENT
+  resource_id     BigInt
+  response_body   Json
+  created_at      DateTime @default(now())
+
+  @@unique([organization_id, idempotency_key])
+  @@map("idempotency_records")
+}
